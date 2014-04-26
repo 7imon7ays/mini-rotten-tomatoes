@@ -8,8 +8,11 @@
 
 #import "MoviesViewController.h"
 #import "MovieCell.h"
+#import "MovieDetailsViewController.h"
+#import "UIImageView+AFNetworking.h"
 
 @interface MoviesViewController ()
+
 @property (weak, nonatomic) IBOutlet UITableView *moviesTableView;
 @property (strong, nonatomic) NSArray *movies;
 
@@ -31,11 +34,20 @@
 {
     [super viewDidLoad];
     // Do any additional setup after loading the view from its nib.
-    self.movies = @[@"One", @"Two", @"Three"];
     self.moviesTableView.delegate = self;
     self.moviesTableView.dataSource = self;
-
+    self.moviesTableView.rowHeight = 140;
     [self.moviesTableView registerNib:[UINib nibWithNibName:@"MovieCell" bundle:nil] forCellReuseIdentifier:@"movieCell"];
+
+    NSString *urlString = @"http://api.rottentomatoes.com/api/public/v1.0/lists/movies/box_office.json?apikey=g9au4hv6khv6wzvzgt55gpqs";
+    NSURL *url = [NSURL URLWithString:urlString];
+    NSURLRequest *request = [NSURLRequest requestWithURL:url];
+
+    [NSURLConnection sendAsynchronousRequest:request queue:[NSOperationQueue mainQueue] completionHandler:^(NSURLResponse *response, NSData *data, NSError *connectionError) {
+        id object = [NSJSONSerialization JSONObjectWithData:data options:0 error:nil];
+        self.movies = object[@"movies"];
+        [self.moviesTableView reloadData];
+    }];
 }
 
 - (void)didReceiveMemoryWarning
@@ -49,10 +61,29 @@
 }
 
 - (MovieCell *) tableView:(UITableView *)tableView cellForRowAtIndexPath:(NSIndexPath *)indexPath {
-    NSString *movieTitle = self.movies[indexPath.row];
-    MovieCell *movieCell = [self.moviesTableView dequeueReusableCellWithIdentifier:@"movieCell"];
+    MovieCell *movieCell = [self.moviesTableView
+                            dequeueReusableCellWithIdentifier:@"movieCell"];
+
+    NSDictionary *movie = self.movies[indexPath.row];
+    NSString *movieTitle = movie[@"title"];
+    NSString *movieSynopsis= movie[@"synopsis"];
+    NSString *movieThumbnailUrlString = [movie valueForKeyPath:@"posters.thumbnail"];
+    NSURL *movieThumbnailUrl = [NSURL URLWithString:movieThumbnailUrlString];
+    [movieCell.thumnailImage setImageWithURL:movieThumbnailUrl];
     movieCell.titleLabel.text = movieTitle;
+    movieCell.synopsisLabel.text = movieSynopsis;
     return movieCell;
+}
+
+- (void) tableView:(UITableView *)tableView didSelectRowAtIndexPath:(NSIndexPath *)indexPath {
+    NSDictionary *movie = self.movies[indexPath.row];
+    MovieDetailsViewController *movieDetailsVC = [[MovieDetailsViewController alloc]
+                                                  initWithMovie:movie];
+    [self.navigationController pushViewController:movieDetailsVC animated:YES];
+}
+
+- (void) tableView:(UITableView *)tableView didDeselectRowAtIndexPath:(NSIndexPath *)indexPath {
+    [tableView deselectRowAtIndexPath:indexPath animated:YES];
 }
 
 @end
